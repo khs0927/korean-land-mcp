@@ -148,7 +148,8 @@ export const analyzeParcelTool = async ({ query }: { query: string }) => {
     : { applies: false };
 
   const nextSteps: string[] = [];
-  const zone = zoneQ.hits[0];
+  // Some LT_C_UQ111 polygons carry no uname (e.g. 도시지역 base); prefer a named 용도지역.
+  const zone = zoneQ.hits.find((h) => h.name !== "(unnamed)") ?? zoneQ.hits[0];
   if (zone) {
     nextSteps.push(
       `[korean-law MCP] '${zone.name}'의 건폐율·용적률 조문 조회: 국토계획법 시행령 제84조·85조 + ${resolved.administrative.sigg ?? "해당 시·군"} 도시계획조례.`
