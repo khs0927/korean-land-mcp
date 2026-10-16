@@ -13,6 +13,7 @@ import { getUrbanFacilityTool } from "./tools/get_urban_facility.js";
 import { getOtherLawDesignationsTool } from "./tools/get_other_law_designations.js";
 import { getLandAttributesTool } from "./tools/get_land_attributes.js";
 import { analyzeParcelTool } from "./tools/analyze_parcel.js";
+import { getParcelBoundaryTool } from "./tools/get_parcel_boundary.js";
 
 dotenv.config();
 
@@ -35,6 +36,13 @@ server.tool(
   "Resolve address or PNU → canonical parcel: PNU, 지번, parsed 지목 (e.g. 공장용지), refined address, WGS84 coordinates, 공시지가, administrative hierarchy. Foundation for all other tools.",
   QUERY_SCHEMA,
   resolveParcelTool
+);
+
+server.tool(
+  "get_parcel_boundary",
+  "Return the cadastral parcel boundary polygon (GeoJSON, EPSG:4326) from V-World LP_PA_CBND_BUBUN, plus bbox, vertex count and approximate area (m², not the official 토지대장 area). Use it to intersect zoning layers with the whole parcel instead of a single point.",
+  QUERY_SCHEMA,
+  getParcelBoundaryTool
 );
 
 server.tool(
@@ -107,6 +115,7 @@ server.tool(
           "- get_district_plan(query): 지구단위계획 + 개발행위허가제한",
           "- get_urban_facility(query): 도시계획시설 9개 카테고리",
           "- get_other_law_designations(query): 38개 개별법령 지정 (국계법 76조⑤ 우선위임 힌트 포함)",
+          "- get_parcel_boundary(query): 필지 경계 폴리곤 (GeoJSON) + 근사 면적",
           "- get_land_attributes(query): 지목 파싱 + 공시지가 + 건물 유무",
           "- analyze_parcel(query): 위 전체를 1회 호출로 체이닝",
           "",
