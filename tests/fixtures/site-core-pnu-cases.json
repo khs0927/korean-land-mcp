@@ -1,0 +1,10 @@
+{
+  "source": "khs0927/korean-site-core@v0.1.0 tests/test_pnu.py (shared contract; do not edit here)",
+  "valid": [
+    {"pnu": "5213010500100360000", "sigungu": "52130", "bjdong": "10500", "mountain": false, "bun": "0036", "ji": "0000", "jibun": "36", "note": "군산 신창동 36"},
+    {"pnu": "1111010100200120003", "sigungu": "11110", "bjdong": "10100", "mountain": true, "bun": "0012", "ji": "0003", "jibun": "산12-3", "note": "산 지번: 대장구분 digit is NOT part of 본번"},
+    {"pnu": "1144012400102290001", "sigungu": "11440", "bjdong": "12400", "mountain": false, "bun": "0229", "ji": "0001", "jibun": "229-1"}
+  ],
+  "invalid_shape": ["", "123", "52130105001003600000", "521301050a100360000"],
+  "invalid_land_type": ["5213010500300360000"]
+}
