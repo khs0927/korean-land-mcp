@@ -49,3 +49,27 @@ offline smoke OK
 - 실제 V-World 호출(`tests/live/smoke-fixtures.ts`): `VWORLD_API_KEY`·`VWORLD_DOMAIN` 필요, 한국 IP 필요.
 - fly.io 배포 확인: 새 Dockerfile은 HTTP 모드로 뜸 — 배포 전 `fly deploy` 1회 확인 권장.
 - korean-site-core 공통 PNU 계약 테스트(`tests/site-core-contract.test.ts`)는 픽스처 사본 기준 — 원본 저장소(비공개) 변경 시 동기화 필요.
+
+## Local Windows run (2026-11-05)
+Windows 10, Node 22.16, 한국 IP. 키는 로컬 `.env` 값을 프로세스 환경변수로만 사용.
+
+| 명령 | 결과 |
+|---|---|
+| `gh pr checks 8` | test (20/22/24) 모두 pass |
+| `npm ci`, `npx tsc --noEmit`, `npm audit` | OK, 취약점 0 |
+| `npm test` | 44 passed (6 files) |
+| `npm run smoke:offline` | 6/6 PASS |
+| `npx tsx tests/live/smoke-fixtures.ts` (갱신 전) | FAILED 3/3. `origin/main`(fce947f)에서도 같은 차이 → 이 PR의 회귀 아님 |
+| 같은 명령 `--update` 후 VERIFY 4회 | 1회차 1건 `timeout of 10000ms exceeded`(V-World 응답 지연, 픽스처 2건 pass), 이후 3회 연속 OK 3/3 |
+| `docker build` | **미실행**: Docker 데몬 꺼짐(`com.docker.service` STOPPED) |
+| Dockerfile 런타임 단계 네이티브 재현(`npm ci --omit=dev` + `dist`, `NODE_ENV=production MCP_TRANSPORT=http`) | initialize 200, notifications/initialized 202, tools/list 9개, 실제 V-World `get_zoning`(연남동 229-1) → PNU 1144012400102290001 |
+
+### 스냅샷 갱신 내용
+4월 기준값이 낡아서 `tests/live/__snapshots__/` 3건을 갱신함.
+- `layer_error_count: 1 → 0` (3건): 지금은 레이어 오류가 없음. 4월에 어떤 레이어가 실패했는지는 기록이 없어 알 수 없음.
+- 갈매리 344-17 `zone: 제1종일반주거지역 → 제2종일반주거지역`: 이 필지는 다중 용도지역이고 라이브 응답에 제1종·제2종·자연녹지·계획관리가 모두 있음. 스냅샷은 `use_zone[0]`만 기록하며, 두 항목의 고시 연도가 2021이라 V-World 반환 순서가 바뀐 것으로 추정(확정 아님). 순서가 또 바뀌면 이 스냅샷은 다시 실패함.
+
+### 남은 일
+- Docker 이미지 빌드·컨테이너 HTTP 확인을 이 PC에서 다시 하려면 Docker Desktop 기동이 필요. 클라우드 빌드 결과는 위 Verification 참고.
+- **HTTP 모드는 프로세스당 세션 1개만 받음**: `src/server.ts`가 transport 하나를 전역으로 쓰기 때문에 두 번째 클라이언트의 initialize가 `400 Server already initialized`로 거부됨. `GET /mcp`도 404. `main`에도 있는 기존 동작이고 이 PR 범위 밖이라 고치지 않음. 여러 클라이언트가 붙는 fly 배포 전에 세션별 transport로 수정 필요.
+- fly 배포 전 확인: `VWORLD_API_KEY`·`VWORLD_DOMAIN` 시크릿 설정, `primary_region = "nrt"`(일본)에서 V-World 호출 가능 여부(국내 IP 필요 조건). `fly deploy`는 실행하지 않음.
