@@ -148,5 +148,5 @@ if (transportType === "http") {
 } else {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("korean-land-mcp v2.0 ready (stdio) — 7 tools wired");
+  console.error("korean-land-mcp v2.0 ready (stdio) — 8 tools + discover_tools wired");
 }
