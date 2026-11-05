@@ -1,6 +1,25 @@
 import axios from "axios";
 
-const VWORLD_BASE = "https://api.vworld.kr/req";
+const VWORLD_DEFAULT_BASE = "https://api.vworld.kr/req";
+
+/**
+ * V-World request base. `VWORLD_BASE_URL` overrides it (e.g. a corporate relay or an offline
+ * fixture server for smoke tests); read lazily because dotenv loads after module imports.
+ */
+export function vworldBase(): string {
+  const raw = process.env.VWORLD_BASE_URL?.trim();
+  if (!raw) return VWORLD_DEFAULT_BASE;
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new VWorldError(`VWORLD_BASE_URL is not a valid URL`, "BAD_BASE_URL");
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") {
+    throw new VWorldError(`VWORLD_BASE_URL must be http(s)`, "BAD_BASE_URL");
+  }
+  return raw.replace(/\/+$/, "");
+}
 
 export class VWorldError extends Error {
   constructor(message: string, public readonly code?: string, public readonly meta?: unknown) {
@@ -129,7 +148,7 @@ export async function geocodeAddress(
   const cached = cacheGet(geocodeCache, cacheKey);
   if (cached) return cached;
 
-  const url = `${VWORLD_BASE}/address`;
+  const url = `${vworldBase()}/address`;
   const { data } = await axios.get(url, {
     params: {
       service: "address",
@@ -234,7 +253,7 @@ export async function getFeatures(opts: FeatureQueryOptions): Promise<VWorldFeat
   if (opts.attrFilter) params.attrFilter = opts.attrFilter;
 
   const doRequest = () =>
-    axios.get(`${VWORLD_BASE}/data`, { params, timeout: 10_000, validateStatus: () => true });
+    axios.get(`${vworldBase()}/data`, { params, timeout: 10_000, validateStatus: () => true });
 
   let res = await doRequest();
   for (let attempt = 0; attempt < BACKOFF_MS.length && res.status >= 500 && res.status < 600; attempt++) {
