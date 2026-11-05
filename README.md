@@ -120,6 +120,13 @@ src/
 npm test
 ```
 
+**오프라인 실행 시험** (키·네트워크 불필요): 로컬 V-World 픽스처 서버를 띄우고 `dist/server.js`를 stdio로 실행해
+`initialize` → `tools/list` → `get_parcel_boundary`·`get_zoning`·`analyze_parcel` 호출을 확인합니다.
+```bash
+npm run smoke:offline
+```
+`VWORLD_BASE_URL` 환경변수로 V-World 주소를 바꿀 수 있습니다(기본 `https://api.vworld.kr/req`, http(s)만 허용).
+
 **Live smoke test** (실제 V-World 호출, `VWORLD_API_KEY` 필요):
 ```bash
 # 단일 지번 디버그
