@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isPnu } from "../src/lib/vworld.js";
+import { isPnu, vworldBase } from "../src/lib/vworld.js";
 
 describe("isPnu", () => {
   it("accepts 19-digit string", () => {
@@ -25,5 +25,33 @@ describe("isPnu", () => {
 
   it("rejects empty string", () => {
     expect(isPnu("")).toBe(false);
+  });
+});
+
+describe("vworldBase", () => {
+  const saved = process.env.VWORLD_BASE_URL;
+  const restore = () => {
+    if (saved === undefined) delete process.env.VWORLD_BASE_URL;
+    else process.env.VWORLD_BASE_URL = saved;
+  };
+
+  it("defaults to the public V-World endpoint", () => {
+    delete process.env.VWORLD_BASE_URL;
+    expect(vworldBase()).toBe("https://api.vworld.kr/req");
+    restore();
+  });
+
+  it("honours VWORLD_BASE_URL and trims trailing slashes", () => {
+    process.env.VWORLD_BASE_URL = "http://127.0.0.1:8787/req/";
+    expect(vworldBase()).toBe("http://127.0.0.1:8787/req");
+    restore();
+  });
+
+  it("rejects non-http(s) or malformed overrides", () => {
+    process.env.VWORLD_BASE_URL = "file:///etc/passwd";
+    expect(() => vworldBase()).toThrow(/http\(s\)/);
+    process.env.VWORLD_BASE_URL = "not a url";
+    expect(() => vworldBase()).toThrow(/valid URL/);
+    restore();
   });
 });

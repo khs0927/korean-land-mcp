@@ -5,15 +5,26 @@ on:
   pull_request:
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npx tsc --noEmit
       - run: npm test
+      # Real stdio run against a local fixture V-World server (no key, no network).
+      - run: npm run smoke:offline
+      - run: npm audit --omit=dev --audit-level=high

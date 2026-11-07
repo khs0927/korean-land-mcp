@@ -1,7 +1,7 @@
 {
   "query": "충청남도 아산시 배방읍 갈매리 344-17",
   "precision": "polygon",
-  "zone": "제1종일반주거지역",
+  "zone": "제2종일반주거지역",
   "district_plan_names": [
     "배방갈매지구 지구단위계획구역"
   ],
@@ -16,5 +16,5 @@
   "priority_delegation_laws": [],
   "land_transaction_permit_count": 1,
   "buildings_present": true,
-  "layer_error_count": 1
+  "layer_error_count": 0
 }
