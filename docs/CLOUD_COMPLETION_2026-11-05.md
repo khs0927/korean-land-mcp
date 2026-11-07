@@ -73,3 +73,24 @@ Windows 10, Node 22.16, 한국 IP. 키는 로컬 `.env` 값을 프로세스 환�
 - Docker 이미지 빌드·컨테이너 HTTP 확인을 이 PC에서 다시 하려면 Docker Desktop 기동이 필요. 클라우드 빌드 결과는 위 Verification 참고.
 - **HTTP 모드는 프로세스당 세션 1개만 받음**: `src/server.ts`가 transport 하나를 전역으로 쓰기 때문에 두 번째 클라이언트의 initialize가 `400 Server already initialized`로 거부됨. `GET /mcp`도 404. `main`에도 있는 기존 동작이고 이 PR 범위 밖이라 고치지 않음. 여러 클라이언트가 붙는 fly 배포 전에 세션별 transport로 수정 필요.
 - fly 배포 전 확인: `VWORLD_API_KEY`·`VWORLD_DOMAIN` 시크릿 설정, `primary_region = "nrt"`(일본)에서 V-World 호출 가능 여부(국내 IP 필요 조건). `fly deploy`는 실행하지 않음.
+
+## Round 2 (2026-11-07)
+코드 변경 없음(문서만). korean-site-core 와의 관계를 기록함 — **포팅하지 않음**.
+
+### korean-site-core 와의 관계
+- `khs0927/korean-site-core`(비공개, Python, 태그 `v0.1.0` = 8e634f0)는 PNU 파싱·V-World 2.0 클라이언트·건폐율/용적률 상한표를
+  Python 저장소들(site-pipeline-mcp, building-regulation-gateway 시험 브랜치)에서 하나로 모은 라이브러리임.
+- 이 저장소는 **TypeScript(Node)** 라서 그 패키지를 그대로 쓸 수 없고, 같은 역할을 자체 구현으로 가짐:
+  | 영역 | korean-site-core (Python) | korean-land-mcp (TS) |
+  |---|---|---|
+  | PNU | `PNU` — 19자리 + 대장구분(11번째 자리) 1/2 검사, `archhub_params()` | `isPnu()` (`src/lib/vworld.ts`) — 19자리만 검사, 대장구분 미검사 |
+  | V-World 전송 | `VWorldClient` — NOT_FOUND→빈 결과, 429/`OVER_REQUEST_LIMIT` 백오프, 키 제거 | `getFeatures()` — 레이어별 캐시·서킷브레이커, `VWorldError` |
+  | 필지 | `LP_PA_CBND_BUBUN` | 같은 레이어 (`src/lib/parcel.ts`, `resolve.ts`) |
+  | 용도지역 | `zoning_at` (main: UQ111~114 4개 레이어, v0.1.0 태그는 UQ111만) | UQ111~114 4개 레이어 (`src/tools/get_zoning.ts`, `analyze_parcel.ts`) |
+  | 건폐율·용적률 상한표 | `rules.py` (시행령 84·85조 + 서울·군산) | **없음** — 이 MCP는 공간 사실만 돌려주고 법령·조례 수치는 korean-law MCP 몫 |
+- 결론: 의존 관계 없음(서로 import 하지 않음). 두 구현이 같은 V-World 레이어·PNU 형식을 쓰므로, 한쪽의 레이어 변경
+  (예: core #2 의 UQ111~114) 은 다른 쪽에도 반영됐는지 수동으로 확인해야 함.
+- 포팅을 하지 않은 이유: 언어가 다르고, 공유할 수 있는 건 데이터(`statutory.json`, `ordinances.json`) 뿐인데 이 MCP는 수치표를 쓰지 않음.
+  나중에 TS 쪽에서 상한표가 필요해지면 JSON 파일만 버전 고정해 가져오는 방식을 권장(Python 코드 포팅 대신).
+- 남는 작은 차이(선택 과제, 이번엔 고치지 않음): `isPnu()` 가 대장구분 자리(1/2)를 검사하지 않음. 잘못된 PNU는 V-World 에서
+  `PNU_NOT_FOUND` 로 끝나므로 결과가 틀리지는 않고 호출 1회가 낭비될 뿐.
