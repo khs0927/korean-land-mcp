@@ -86,7 +86,7 @@ Windows 10, Node 22.16, 한국 IP. 키는 로컬 `.env` 값을 프로세스 환�
   | PNU | `PNU` — 19자리 + 대장구분(11번째 자리) 1/2 검사, `archhub_params()` | `isPnu()` (`src/lib/vworld.ts`) — 19자리만 검사, 대장구분 미검사 |
   | V-World 전송 | `VWorldClient` — NOT_FOUND→빈 결과, 429/`OVER_REQUEST_LIMIT` 백오프, 키 제거 | `getFeatures()` — 레이어별 캐시·서킷브레이커, `VWorldError` |
   | 필지 | `LP_PA_CBND_BUBUN` | 같은 레이어 (`src/lib/parcel.ts`, `resolve.ts`) |
-  | 용도지역 | `zoning_at` (main: UQ111~114 4개 레이어, v0.1.0 태그는 UQ111만) | 자체 레이어 목록(`overlays.ts`, `get_zoning`) |
+  | 용도지역 | `zoning_at` (main: UQ111~114 4개 레이어, v0.1.0 태그는 UQ111만) | UQ111~114 4개 레이어 (`src/tools/get_zoning.ts`, `analyze_parcel.ts`) |
   | 건폐율·용적률 상한표 | `rules.py` (시행령 84·85조 + 서울·군산) | **없음** — 이 MCP는 공간 사실만 돌려주고 법령·조례 수치는 korean-law MCP 몫 |
 - 결론: 의존 관계 없음(서로 import 하지 않음). 두 구현이 같은 V-World 레이어·PNU 형식을 쓰므로, 한쪽의 레이어 변경
   (예: core #2 의 UQ111~114) 은 다른 쪽에도 반영됐는지 수동으로 확인해야 함.
