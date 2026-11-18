@@ -186,6 +186,10 @@ if (transportType === "http") {
       };
       await createServer().connect(transport);
     }
+    if (!transport) {
+      res.status(500).json({ error: "MCP transport unavailable" });
+      return;
+    }
     try {
       await transport.handleRequest(req, res, req.body);
     } catch {
