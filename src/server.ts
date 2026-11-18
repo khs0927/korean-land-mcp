@@ -4,7 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import express from "express";
 import dotenv from "dotenv";
 import { z } from "zod";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 
 import { resolveParcelTool } from "./tools/resolve_parcel.js";
 import { getZoningTool } from "./tools/get_zoning.js";
@@ -17,6 +17,7 @@ import { getParcelBoundaryTool } from "./tools/get_parcel_boundary.js";
 
 dotenv.config();
 
+function createServer() {
 const server = new McpServer({
   name: "korean-land-mcp",
   version: "2.0.0",
@@ -126,26 +127,92 @@ server.tool(
   })
 );
 
+return server;
+}
+
 const transportType = process.env.MCP_TRANSPORT || "stdio";
 
 if (transportType === "http") {
+  // Never expose this endpoint without a strong secret at the reverse proxy AND in the app.
+  const bearerToken = process.env.MCP_BEARER_TOKEN ?? "";
+  if (bearerToken.length < 32) {
+    throw new Error("HTTP MCP requires a random MCP_BEARER_TOKEN of at least 32 characters");
+  }
   const app = express();
-  app.use(express.json());
+  app.disable("x-powered-by");
+  app.use(express.json({ limit: "2mb" }));
 
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => randomUUID(),
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok", service: "korean-land-mcp", transport: "http" });
   });
-  await server.connect(transport);
 
+  app.use("/mcp", (req, res, next) => {
+    const auth = req.header("authorization") ?? "";
+    const supplied = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    const expected = Buffer.from(bearerToken, "utf8");
+    const candidate = Buffer.from(supplied, "utf8");
+    if (candidate.length !== expected.length || !timingSafeEqual(candidate, expected)) {
+      res.setHeader("WWW-Authenticate", 'Bearer realm="korean-land-mcp"');
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    next();
+  });
+
+  // One transport + McpServer per client session; the old global transport allowed only one.
+  const sessions = new Map<string, StreamableHTTPServerTransport>();
   app.post("/mcp", async (req, res) => {
-    await transport.handleRequest(req, res, req.body);
+    const id = req.header("mcp-session-id");
+    let transport: StreamableHTTPServerTransport | undefined = id ? sessions.get(id) : undefined;
+    if (id && !transport) {
+      res.status(404).json({ error: "MCP session not found" });
+      return;
+    }
+    if (!id) {
+      if (req.body?.method !== "initialize") {
+        res.status(400).json({ error: "MCP initialize required" });
+        return;
+      }
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (sessionId) => {
+          if (transport) sessions.set(sessionId, transport);
+        },
+      });
+      const thisTransport = transport;
+      thisTransport.onclose = () => {
+        const sessionId = thisTransport.sessionId;
+        if (sessionId) sessions.delete(sessionId);
+      };
+      await createServer().connect(transport);
+    }
+    if (!transport) {
+      res.status(500).json({ error: "MCP transport unavailable" });
+      return;
+    }
+    try {
+      await transport.handleRequest(req, res, req.body);
+    } catch {
+      if (!res.headersSent) res.status(500).json({ error: "MCP request failed" });
+    }
   });
 
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.error(`HTTP MCP on :${PORT}/mcp`);
+  app.delete("/mcp", async (req, res) => {
+    const transport = sessions.get(req.header("mcp-session-id") ?? "");
+    if (!transport) {
+      res.status(404).json({ error: "MCP session not found" });
+      return;
+    }
+    await transport.handleRequest(req, res);
   });
+  app.get("/mcp", (_req, res) => {
+    res.status(405).setHeader("Allow", "POST, DELETE").end();
+  });
+
+  const PORT = Number(process.env.PORT || 3000);
+  app.listen(PORT, "0.0.0.0", () => console.error("Authenticated HTTP MCP on :" + PORT + "/mcp"));
 } else {
+  const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("korean-land-mcp v2.0 ready (stdio) — 9 tools wired");
