@@ -27,4 +27,5 @@ jobs:
       - run: npm test
       # Real stdio run against a local fixture V-World server (no key, no network).
       - run: npm run smoke:offline
+      - run: node scripts/http-auth-smoke.mjs
       - run: npm audit --omit=dev --audit-level=high
